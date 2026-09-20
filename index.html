@@ -27,34 +27,47 @@
         --shadow-card: 0 18px 50px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
       }
 
-      /* In-game room: do NOT stretch — restore default app layout */
-      body.sc-in-game #root .mx-auto.flex.min-h-dvh.w-full.max-w-6xl,
-      body.sc-in-game #root .mx-auto.flex.w-full.max-w-6xl {
-        max-width: var(--container-6xl, 72rem) !important;
-        width: 100% !important;
-        margin-inline: auto !important;
-        height: auto !important;
-        min-height: 100dvh !important;
-      }
+
+      /* Friend room only: keep chat column max-w-lg (do not touch yard aside order) */
       body.sc-in-game #root .relative.z-10.mx-auto.flex.min-h-0.w-full.max-w-lg {
         max-width: var(--container-lg, 32rem) !important;
         margin-inline: auto !important;
       }
+
+      /* Yard shell present (aside hero): correct layout even before body.sc-on-yard
+         — kills flash when returning from Friend */
+      body #root:has(aside.relative.isolate) .mx-auto.flex.min-h-dvh.w-full.max-w-6xl,
+      body #root:has(aside.relative.isolate) .mx-auto.flex.w-full.max-w-6xl {
+        max-width: none !important;
+        width: 100% !important;
+        margin-inline: 0 !important;
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+      }
+      body #root:has(aside.relative.isolate) .relative.z-10.mx-auto.flex.min-h-0.w-full.max-w-lg {
+        max-width: none !important;
+        margin-inline: 0 !important;
+        width: 100% !important;
+      }
       @media (min-width: 1024px) {
-        body.sc-in-game #root aside.relative.isolate {
-          order: 2 !important;
-          width: 54% !important;
-          flex: none !important;
-        }
-        body.sc-in-game #root .relative.flex.min-h-0.flex-1.flex-col {
+        body #root:has(aside.relative.isolate) aside.relative.isolate {
           order: 0 !important;
-          width: auto !important;
-          flex: 1 1 0% !important;
+          width: 50% !important;
+          max-width: none !important;
+          flex: 0 0 50% !important;
         }
-        body.sc-in-game #root .relative.flex.min-h-0.flex-1.flex-col > .relative.z-10 {
-          max-width: var(--container-lg, 32rem) !important;
-          margin-inline: auto !important;
-          padding-inline: revert !important;
+        body #root:has(aside.relative.isolate) .relative.flex.min-h-0.flex-1.flex-col {
+          order: 2 !important;
+          flex: 1 1 50% !important;
+          max-width: none !important;
+          width: 50% !important;
+          min-width: 0 !important;
+        }
+        body #root:has(aside.relative.isolate) .relative.flex.min-h-0.flex-1.flex-col > .relative.z-10 {
+          max-width: none !important;
+          margin-inline: 0 !important;
+          width: 100% !important;
+          padding-inline: 1.75rem !important;
         }
       }
 
@@ -310,36 +323,46 @@
           if (inGame()) return false;
           var root = document.getElementById("root");
           if (!root) return true;
+          // Prefer DOM shell (aside hero) so we don't wait on text paint
           if (root.querySelector("aside.relative.isolate")) return true;
           var text = (root.innerText || "").slice(0, 1200);
           return /DAILY YARD|Play — CLOCK IN|CLOCK IN/i.test(text);
         }
         function tick() {
           var game = inGame();
-          var yard = onYardMenu();
-          document.body.classList.toggle("sc-in-game", game);
-          if (game) document.body.classList.remove("sc-on-yard");
-          else if (yard) document.body.classList.add("sc-on-yard");
-          else if (Date.now() - started > 900) document.body.classList.remove("sc-on-yard");
+          var hasYardShell = !!(document.querySelector("#root aside.relative.isolate"));
+          // Yard shell wins — booth-hot can lag a frame when leaving Friend
+          if (hasYardShell) {
+            document.body.classList.remove("sc-in-game");
+            document.body.classList.add("sc-on-yard");
+            game = false;
+          } else {
+            document.body.classList.toggle("sc-in-game", game);
+            if (game) document.body.classList.remove("sc-on-yard");
+            else if (onYardMenu()) document.body.classList.add("sc-on-yard");
+            else if (Date.now() - started > 900) document.body.classList.remove("sc-on-yard");
+          }
           ["sc-play-demo", "sc-slice-demo"].forEach(function (id) {
             var btn = document.getElementById(id);
             if (!btn) return;
             if (game) btn.classList.add("visible");
             else btn.classList.remove("visible");
           });
-          if (document.querySelector("#root aside.relative.isolate") || Date.now() - started > 1200) {
+          if (hasYardShell || Date.now() - started > 1200) {
             reveal();
           }
         }
         tick();
-        setInterval(tick, 120);
+        setInterval(tick, 80);
+        // Keep observing — Friend→yard remounts need an immediate tick
         var root = document.getElementById("root");
         if (root && window.MutationObserver) {
-          var mo = new MutationObserver(function () {
-            tick();
-            if (revealed) mo.disconnect();
+          new MutationObserver(function () { tick(); }).observe(root, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["class"]
           });
-          mo.observe(root, { childList: true, subtree: true });
         }
       })();
     </script>
