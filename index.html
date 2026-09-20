@@ -3,14 +3,160 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
-    <meta name="theme-color" content="#0b1620" />
+    <meta name="theme-color" content="#070d14" />
     <meta http-equiv="Permissions-Policy" content="microphone=*, autoplay=*" />
     <title>Solarchik CLOCK IN</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-      html, body, #root { height: 100%; margin: 0; background: #0b1620; color: #e8f0f5; }
+      html, body, #root { height: 100%; margin: 0; background: #070d14; color: #e8f0f5; }
       #boot { padding: 2rem; font: 600 18px/1.4 Nunito, system-ui, sans-serif; }
-      /* Shared pill style for booth shortcuts */
+
+      /* —— Hackathon menu skin —— */
+      :root {
+        --color-bg: #070d14;
+        --color-surface: #0f1c28cc;
+        --color-elevated: #173246;
+        --color-fg: #f2f7fb;
+        --color-muted: #93a9b8;
+        --color-primary: #f0c43a;
+        --color-primary-fg: #0a1218;
+        --color-border: #ffffff22;
+        --shadow-card: 0 18px 50px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
+      }
+
+      body.sc-on-yard {
+        background:
+          radial-gradient(1200px 600px at 15% -10%, rgba(240,196,58,.16), transparent 55%),
+          radial-gradient(900px 500px at 90% 10%, rgba(56,189,248,.12), transparent 50%),
+          #070d14;
+      }
+
+      body.sc-on-yard #root {
+        background: transparent;
+      }
+
+      /* Left column panel polish */
+      body.sc-on-yard #root .relative.flex.min-h-0.flex-1.flex-col {
+        backdrop-filter: blur(10px);
+      }
+
+      body.sc-on-yard #root .rounded-xl.bg-surface,
+      body.sc-on-yard #root .rounded-lg.bg-surface,
+      body.sc-on-yard #root .rounded-md.bg-surface {
+        background: linear-gradient(160deg, rgba(22,38,52,.92), rgba(12,24,34,.88)) !important;
+        border: 1px solid rgba(255,255,255,.08);
+        box-shadow: var(--shadow-card);
+        backdrop-filter: blur(14px);
+      }
+
+      body.sc-on-yard #root .font-display.text-4xl {
+        letter-spacing: -0.03em;
+        background: linear-gradient(120deg, #fff 20%, #f0c43a 55%, #7dd3fc 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent !important;
+      }
+
+      body.sc-on-yard #root p.text-sm.font-semibold.tracking-\[0\.18em\].text-primary {
+        letter-spacing: 0.22em !important;
+        text-transform: uppercase;
+        opacity: 0.95;
+      }
+
+      /* Primary CTA glow */
+      body.sc-on-yard #root button.bg-primary.h-14,
+      body.sc-on-yard #root button.flex.h-14.items-center.justify-center.gap-2.rounded-lg.bg-primary {
+        position: relative;
+        overflow: hidden;
+        box-shadow:
+          0 0 0 1px rgba(240,196,58,.35),
+          0 12px 40px rgba(240,196,58,.28),
+          0 4px 12px rgba(0,0,0,.35);
+        transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+      }
+      body.sc-on-yard #root button.bg-primary.h-14:hover,
+      body.sc-on-yard #root button.flex.h-14.items-center.justify-center.gap-2.rounded-lg.bg-primary:hover {
+        filter: brightness(1.05);
+        box-shadow:
+          0 0 0 1px rgba(240,196,58,.5),
+          0 16px 48px rgba(240,196,58,.38),
+          0 4px 12px rgba(0,0,0,.35);
+      }
+      body.sc-on-yard #root button.bg-primary.h-14::after,
+      body.sc-on-yard #root button.flex.h-14.items-center.justify-center.gap-2.rounded-lg.bg-primary::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.28) 48%, transparent 62%);
+        transform: translateX(-120%);
+        animation: sc-sheen 3.2s ease-in-out infinite;
+        pointer-events: none;
+      }
+      @keyframes sc-sheen {
+        0%, 55% { transform: translateX(-120%); }
+        75%, 100% { transform: translateX(120%); }
+      }
+
+      /* Stat tiles + secondary buttons */
+      body.sc-on-yard #root .rounded-md.bg-elevated,
+      body.sc-on-yard #root button.rounded-md.bg-elevated {
+        border: 1px solid rgba(255,255,255,.06);
+        background: rgba(24,48,65,.85) !important;
+        transition: border-color .15s ease, transform .15s ease, background .15s ease;
+      }
+      body.sc-on-yard #root button.rounded-md.bg-elevated:hover {
+        border-color: rgba(240,196,58,.35);
+        transform: translateY(-1px);
+      }
+
+      /* Week / roofs chips */
+      body.sc-on-yard #root .bg-primary.text-primary-fg {
+        box-shadow: 0 0 0 1px rgba(240,196,58,.25), 0 8px 20px rgba(240,196,58,.18);
+      }
+
+      /* Hero image vignette */
+      body.sc-on-yard #root aside.relative.isolate img {
+        filter: saturate(1.08) contrast(1.04);
+      }
+      body.sc-on-yard #root aside.relative.isolate::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(80% 70% at 70% 40%, transparent 40%, rgba(7,13,20,.35) 100%),
+          linear-gradient(90deg, rgba(7,13,20,.55), transparent 35%);
+        z-index: 1;
+      }
+
+      /* Hackathon badge on yard only */
+      #sc-hack-badge {
+        display: none;
+        position: fixed;
+        left: 50%;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        z-index: 40;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font: 700 11px/1 Nunito, system-ui, sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #dce9f2;
+        background: rgba(10,18,28,.72);
+        border: 1px solid rgba(255,255,255,.1);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 24px rgba(0,0,0,.35);
+        pointer-events: none;
+      }
+      body.sc-on-yard #sc-hack-badge { display: inline-flex; align-items: center; gap: 8px; }
+      #sc-hack-badge i {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: #6fbf4a;
+        box-shadow: 0 0 0 3px rgba(111,191,74,.25);
+      }
+
+      /* —— In-game booth shortcuts: hidden on main menu —— */
       #sc-play-demo,
       #sc-slice-demo {
         position: fixed;
@@ -30,16 +176,14 @@
         cursor: pointer;
         white-space: nowrap;
       }
-      #sc-play-demo.visible,
-      #sc-slice-demo.visible { display: inline-flex; }
-      /* Play Demo — under the red Secretary pill (right) */
+      body.sc-in-game #sc-play-demo.visible,
+      body.sc-in-game #sc-slice-demo.visible { display: inline-flex; }
       #sc-play-demo {
         right: calc(4% + 10px);
         top: calc(12% + 44px);
         background: #1565c0;
       }
       #sc-play-demo:hover { background: #1976d2; }
-      /* Slice — left side, opposite Secretary */
       #sc-slice-demo {
         left: calc(4% + 10px);
         top: calc(12% + 10px);
@@ -47,14 +191,8 @@
       }
       #sc-slice-demo:hover { background: #8e24aa; }
       @media (max-width: 720px) {
-        #sc-play-demo {
-          right: 10px;
-          top: calc(10% + 44px);
-        }
-        #sc-slice-demo {
-          left: 10px;
-          top: calc(10% + 10px);
-        }
+        #sc-play-demo { right: 10px; top: calc(10% + 44px); }
+        #sc-slice-demo { left: 10px; top: calc(10% + 10px); }
       }
     </style>
     <link rel="stylesheet" href="/assets/style.css" />
@@ -62,6 +200,7 @@
   </head>
   <body>
     <div id="root"><p id="boot">Solarchik…</p></div>
+    <div id="sc-hack-badge"><i></i> MunichTech · Live demo</div>
     <a
       id="sc-slice-demo"
       href="https://slice-solana.netlify.app/"
@@ -82,14 +221,32 @@
         if (target) target.textContent = String(message || "error");
       };
       (function syncBoothShortcuts() {
+        function inGame() {
+          var hot = document.getElementById("sc-booth-hot");
+          return !!(hot && hot.classList.contains("on"));
+        }
+        function onYardMenu() {
+          // Yard home shows the Solarchik H1 + Play CLOCK IN CTA; hide shortcuts there.
+          if (inGame()) return false;
+          var root = document.getElementById("root");
+          if (!root) return true;
+          var text = (root.innerText || "").slice(0, 1200);
+          return /DAILY YARD|Play — CLOCK IN|CLOCK IN/i.test(text);
+        }
         function tick() {
+          var game = inGame();
+          var yard = onYardMenu();
+          document.body.classList.toggle("sc-in-game", game);
+          document.body.classList.toggle("sc-on-yard", yard && !game);
           ["sc-play-demo", "sc-slice-demo"].forEach(function (id) {
             var btn = document.getElementById(id);
-            if (btn) btn.classList.add("visible");
+            if (!btn) return;
+            if (game) btn.classList.add("visible");
+            else btn.classList.remove("visible");
           });
         }
         tick();
-        setInterval(tick, 400);
+        setInterval(tick, 350);
       })();
     </script>
     <script src="/assets/native.js?v=13"></script>
