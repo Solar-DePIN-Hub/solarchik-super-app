@@ -117,6 +117,7 @@
       );
       const result = await response.json().catch(() => ({}));
       let text = String(result.reply || result.text || result.message || "").trim();
+      // Never hand the game an empty failure — it falls back to a canned line.
       if (!response.ok || !text) {
         text = "I glitched for a second. Say that again — I'm here.";
       }
