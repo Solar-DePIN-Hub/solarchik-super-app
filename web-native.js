@@ -1,34 +1,47 @@
 (() => {
-  // Keep any unrelated game methods from a prior Netlify bridge, but own chat,
-  // mic, and speech so they stay on this Vercel origin.
   const previous = window.SolarchikNative || {};
   const api = new URL("/api", location.origin).toString().replace(/\/$/, "");
 
   const reply = (requestId, data) => {
     try {
       window.SolarchikNativeReply(String(requestId), JSON.stringify(data));
-    } catch (_) {
-      // The game may already have left the room; nothing else is required.
-    }
+    } catch (_) {}
   };
 
-  const locale = (value) => {
-    const raw = String(value || navigator.language || "uk-UA");
+  // Prefer real spoken language over game voice names (eve/rex) or forced "en".
+  const browserLang = () => {
+    const list = [navigator.language, ...(navigator.languages || [])].filter(Boolean);
+    for (const raw of list) {
+      if (/^uk/i.test(raw)) return "uk-UA";
+      if (/^ru/i.test(raw)) return "ru-RU";
+    }
+    return null;
+  };
+
+  const hasCyrillic = (text) => /[а-яА-ЯіїєґІЇЄҐёЁ]/.test(String(text || ""));
+
+  const locale = (value, forText) => {
+    if (forText && hasCyrillic(forText)) {
+      if (/[іїєґІЇЄҐ]/.test(forText) || !/[ыэёъЫЭЁЪ]/.test(forText)) return "uk-UA";
+      return "ru-RU";
+    }
+    const raw = String(value || "");
+    if (/^(eve|rex|leo|ara|sunny|dry)$/i.test(raw)) {
+      return browserLang() || "uk-UA";
+    }
     if (/^uk/i.test(raw)) return "uk-UA";
     if (/^ru/i.test(raw)) return "ru-RU";
     if (/^es/i.test(raw)) return "es-ES";
-    if (/^en/i.test(raw)) return "en-US";
-    // Voice names like eve/rex/leo are not locales — fall back to browser language.
-    if (/^(eve|rex|leo|ara|sunny|dry)$/i.test(raw)) {
-      return locale(navigator.language || "uk-UA");
+    if (/^en/i.test(raw)) {
+      // Game often forces en even when the OS/user is Ukrainian.
+      return browserLang() || "en-US";
     }
-    return "en-US";
+    return browserLang() || "uk-UA";
   };
 
   const unlockSpeech = () => {
     try {
       window.speechSynthesis?.getVoices();
-      // Some Chromium builds stay silent until a no-op utterance runs after a gesture.
       if (!window.__solarchikSpeechUnlocked && window.speechSynthesis) {
         const warm = new SpeechSynthesisUtterance(" ");
         warm.volume = 0;
@@ -39,31 +52,47 @@
     } catch (_) {}
   };
 
+  const pickVoice = (lang) => {
+    const voices = window.speechSynthesis?.getVoices?.() || [];
+    if (!voices.length) return null;
+    const prefix = lang.slice(0, 2).toLowerCase();
+    const score = (v) => {
+      let s = 0;
+      const id = `${v.name} ${v.lang}`.toLowerCase();
+      if (v.lang.toLowerCase().startsWith(prefix)) s += 10;
+      if (v.lang.toLowerCase() === lang.toLowerCase()) s += 5;
+      // Prefer neural / natural voices on Windows / Chrome.
+      if (/neural|natural|online|premium|google|microsoft/.test(id)) s += 4;
+      if (/ukrainian|україн|ukrain/.test(id)) s += 6;
+      if (v.localService === false) s += 1;
+      return s;
+    };
+    return [...voices].sort((a, b) => score(b) - score(a))[0] || null;
+  };
+
   const speak = (text, requestedLocale) => {
     if (!text || !window.speechSynthesis) return false;
     try {
       unlockSpeech();
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(String(text));
-      utterance.lang = locale(requestedLocale);
-      utterance.rate = 1.03;
-      const voices = window.speechSynthesis.getVoices() || [];
-      const prefix = utterance.lang.slice(0, 2).toLowerCase();
-      const voice =
-        voices.find((item) => item.lang.toLowerCase().startsWith(prefix)) ||
-        voices.find((item) => item.default) ||
-        voices[0];
+      const lang = locale(requestedLocale, text);
+      utterance.lang = lang;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.05;
+      const voice = pickVoice(lang);
       if (voice) utterance.voice = voice;
       const start = () => {
         try {
           window.speechSynthesis.speak(utterance);
         } catch (_) {}
       };
+      const voices = window.speechSynthesis.getVoices() || [];
       if (!voices.length) {
         window.speechSynthesis.addEventListener("voiceschanged", start, { once: true });
-        window.setTimeout(start, 120);
+        window.setTimeout(start, 150);
       } else {
-        window.setTimeout(start, 30);
+        window.setTimeout(start, 40);
       }
       return true;
     } catch (_) {
@@ -103,24 +132,25 @@
         .filter((entry) => entry.text)
         .slice(-8);
 
-      const response = await withTimeout(`${api}/chat`, {
-        message,
-        history,
-        language: locale(),
-      }, 20000);
+      const response = await withTimeout(
+        `${api}/chat`,
+        { message, history, language: locale(undefined, message) },
+        20000,
+      );
       const result = await response.json().catch(() => ({}));
-      const text = String(result.reply || result.text || result.message || "").trim();
-      if (response.ok && text) {
-        speak(text, locale());
-        reply(requestId, { ok: true, text });
-      } else {
-        reply(requestId, {
-          ok: false,
-          error: result.error || "ai_unavailable",
-        });
+      let text = String(result.reply || result.text || result.message || "").trim();
+      // Never hand the game an empty failure — it falls back to the English catchphrase.
+      if (!response.ok || !text) {
+        text = hasCyrillic(message)
+          ? "Я трохи завис. Напиши ще раз — я тут."
+          : "I glitched for a second. Say that again — I'm here.";
       }
+      speak(text, locale(undefined, text));
+      reply(requestId, { ok: true, text });
     } catch (error) {
-      reply(requestId, { ok: false, error: error?.name === "AbortError" ? "timeout" : "network" });
+      const text = "Я трохи завис. Напиши ще раз — я тут.";
+      speak(text, "uk-UA");
+      reply(requestId, { ok: true, text });
     }
   }
 
@@ -128,23 +158,27 @@
     try {
       const base64 = String(audio || "").replace(/^data:[^,]*,/, "");
       if (!base64) return reply(requestId, { ok: false, error: "empty_audio" });
-      const response = await withTimeout(`${api}/transcribe`, {
-        audio: base64,
-        mime: String(mime || "audio/webm"),
-      }, 15000);
+      const response = await withTimeout(
+        `${api}/transcribe`,
+        { audio: base64, mime: String(mime || "audio/webm") },
+        15000,
+      );
       const result = await response.json().catch(() => ({}));
       const text = String(result.text || "").trim();
-      reply(requestId, response.ok && result.ok && text ? { ok: true, text } : {
-        ok: false,
-        error: result.error || "transcription_unavailable",
-      });
+      reply(
+        requestId,
+        response.ok && result.ok && text
+          ? { ok: true, text }
+          : { ok: false, error: result.error || "transcription_unavailable" },
+      );
     } catch (error) {
-      reply(requestId, { ok: false, error: error?.name === "AbortError" ? "timeout" : "network" });
+      reply(requestId, {
+        ok: false,
+        error: error?.name === "AbortError" ? "timeout" : "network",
+      });
     }
   }
 
-  // Hold-to-talk session. The game calls listen() on pointerdown and
-  // stopListen() on pointerup (via SolarchikNative.stopListen).
   let listenSession = null;
 
   const warmMic = () => {
@@ -167,7 +201,6 @@
       return;
     }
 
-    // Replace any prior session.
     if (listenSession) {
       try {
         listenSession.recognition.onresult = null;
@@ -186,6 +219,8 @@
     let settled = false;
     let transcript = "";
     let recognition;
+    // Always prefer browser / Ukrainian over game "en" / voice names.
+    const lang = locale(localeHint) || browserLang() || "uk-UA";
 
     const finish = (data) => {
       if (settled) return;
@@ -204,10 +239,10 @@
 
     try {
       recognition = new SR();
-      recognition.lang = locale(localeHint);
+      recognition.lang = lang;
       recognition.interimResults = true;
       recognition.continuous = true;
-      recognition.maxAlternatives = 1;
+      recognition.maxAlternatives = 3;
 
       recognition.onresult = (event) => {
         let text = "";
@@ -219,23 +254,17 @@
 
       recognition.onerror = (event) => {
         const code = String(event?.error || "speech_error");
-        // Soft errors while still holding — keep waiting for stopListen.
-        if (code === "no-speech" || code === "aborted" || code === "audio-capture") {
-          return;
-        }
+        if (code === "no-speech" || code === "aborted" || code === "audio-capture") return;
         if (code === "not-allowed" || code === "service-not-allowed") {
           finish({ ok: false, error: "mic_blocked" });
         }
       };
 
       recognition.onend = () => {
-        // Chrome ends continuous sessions between phrases; restart while held.
         if (!settled && listenSession && listenSession.requestId === String(requestId)) {
           try {
             recognition.start();
-          } catch (_) {
-            // Will be finalized by stopListen or timeout in the game.
-          }
+          } catch (_) {}
         }
       };
 
@@ -244,6 +273,7 @@
         recognition,
         finish,
         getTranscript: () => transcript,
+        startedAt: Date.now(),
       };
       recognition.start();
     } catch (error) {
@@ -253,12 +283,27 @@
 
   function stopListen() {
     if (!listenSession) return;
-    const text = String(listenSession.getTranscript() || "").trim();
-    const finish = listenSession.finish;
+    const session = listenSession;
+    const finish = session.finish;
+    const heldMs = Date.now() - (session.startedAt || Date.now());
+    const read = () => String(session.getTranscript() || "").trim();
     try {
-      listenSession.recognition.stop();
+      session.recognition.stop();
     } catch (_) {}
-    finish(text ? { ok: true, text } : { ok: false, error: "no_speech" });
+    const text = read();
+    if (text) {
+      finish({ ok: true, text });
+      return;
+    }
+    if (heldMs < 350) {
+      finish({ ok: false, error: "no_speech" });
+      return;
+    }
+    // Brief delay to catch late final results from Chrome.
+    window.setTimeout(() => {
+      const late = read();
+      finish(late ? { ok: true, text: late } : { ok: false, error: "no_speech" });
+    }, 320);
   }
 
   window.SolarchikNative = {
