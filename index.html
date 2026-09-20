@@ -31,13 +31,43 @@
       }
       body.sc-on-yard #root { background: transparent; }
 
-      /* Desktop: photo LEFT, menu RIGHT */
+      /* Full-bleed yard: edge to edge, no max-w-6xl letterbox */
+      body.sc-on-yard #root .mx-auto.flex.min-h-dvh.w-full.max-w-6xl,
+      body.sc-on-yard #root .mx-auto.flex.w-full.max-w-6xl {
+        max-width: none !important;
+        width: 100% !important;
+        margin-inline: 0 !important;
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+      }
+
+      /* Inner menu column: drop max-w-lg so it fills the right half */
+      body.sc-on-yard #root .relative.z-10.mx-auto.flex.min-h-0.w-full.max-w-lg {
+        max-width: none !important;
+        margin-inline: 0 !important;
+        width: 100% !important;
+      }
+
+      /* Desktop: photo LEFT, menu RIGHT, both stretch to viewport edges */
       @media (min-width: 1024px) {
         body.sc-on-yard #root aside.relative.isolate {
           order: 0 !important;
+          width: 50% !important;
+          max-width: none !important;
+          flex: 0 0 50% !important;
         }
         body.sc-on-yard #root .relative.flex.min-h-0.flex-1.flex-col {
           order: 2 !important;
+          flex: 1 1 50% !important;
+          max-width: none !important;
+          width: 50% !important;
+          min-width: 0 !important;
+        }
+        body.sc-on-yard #root .relative.flex.min-h-0.flex-1.flex-col > .relative.z-10 {
+          max-width: none !important;
+          margin-inline: 0 !important;
+          width: 100% !important;
+          padding-inline: 1.75rem !important;
         }
       }
 
