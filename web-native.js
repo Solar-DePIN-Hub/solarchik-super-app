@@ -1,6 +1,10 @@
 /* Vercel bridge for Solarchik CLOCK IN. API credentials never enter the browser. */
 (() => {
-  const CHAT_URL = "https://friend.solardepin.net/v1/chat";
+  // Same-origin routes avoid browser privacy/ad-blocking extensions blocking the
+  // Worker subdomain. The Vercel functions below only relay requests to the
+  // existing Worker; credentials still never enter the browser or Vercel.
+  const API_BASE = new URL("/api", window.location.origin).toString().replace(/\/$/, "");
+  const CHAT_URL = `${API_BASE}/chat`;
   let activeSpeech = null;
 
   const reply = (id, data) => {
@@ -60,10 +64,38 @@
     }
   }
 
-  // Voice recognition stays inside the game bundle. It directly uses
-  // Chrome's SpeechRecognition and its browser fallback on Android.
+  // Used only when the browser cannot turn speech into text itself (notably
+  // Safari on some iPhones). The original game records a short audio clip and
+  // gives it to this bridge; the clip goes straight to our Worker for
+  // transcription and is never stored by the browser bridge.
+  async function hear(audio, mime, id) {
+    const data = String(audio || "").replace(/^data:[^,]*, "");
+    if (!data) return reply(id, { ok: false, error: "empty_audio" });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8500);
+    try {
+      const response = await fetch(`${API_BASE}/transcribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio: data, mime: String(mime || "audio/webm") }),
+        signal: controller.signal,
+      });
+      const body = await response.json().catch(() => ({}));
+      const text = String(body.text || "").trim();
+      reply(id, response.ok && body.ok && text
+        ? { ok: true, text }
+        : { ok: false, error: body.error || "transcription_unavailable" });
+    } catch (error) {
+      reply(id, { ok: false, error: error?.name === "AbortError" ? "timeout" : "network" });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   window.SolarchikNative = {
     ask,
+    hear,
     speak,
     hush() { try { speechSynthesis.cancel(); } catch (_) {} },
   };
