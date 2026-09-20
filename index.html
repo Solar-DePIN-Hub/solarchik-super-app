@@ -11,7 +11,6 @@
       html, body, #root { height: 100%; margin: 0; background: #070d14; color: #e8f0f5; }
       #boot { padding: 2rem; font: 600 18px/1.4 Nunito, system-ui, sans-serif; }
 
-      /* —— Hackathon menu skin —— */
       :root {
         --color-bg: #070d14;
         --color-surface: #0f1c28cc;
@@ -26,16 +25,22 @@
 
       body.sc-on-yard {
         background:
-          radial-gradient(1200px 600px at 15% -10%, rgba(240,196,58,.16), transparent 55%),
-          radial-gradient(900px 500px at 90% 10%, rgba(56,189,248,.12), transparent 50%),
+          radial-gradient(1200px 600px at 85% -10%, rgba(240,196,58,.14), transparent 55%),
+          radial-gradient(900px 500px at 10% 10%, rgba(56,189,248,.10), transparent 50%),
           #070d14;
       }
+      body.sc-on-yard #root { background: transparent; }
 
-      body.sc-on-yard #root {
-        background: transparent;
+      /* Desktop: photo LEFT, menu RIGHT */
+      @media (min-width: 1024px) {
+        body.sc-on-yard #root aside.relative.isolate {
+          order: 0 !important;
+        }
+        body.sc-on-yard #root .relative.flex.min-h-0.flex-1.flex-col {
+          order: 2 !important;
+        }
       }
 
-      /* Left column panel polish */
       body.sc-on-yard #root .relative.flex.min-h-0.flex-1.flex-col {
         backdrop-filter: blur(10px);
       }
@@ -63,7 +68,6 @@
         opacity: 0.95;
       }
 
-      /* Primary CTA glow */
       body.sc-on-yard #root button.bg-primary.h-14,
       body.sc-on-yard #root button.flex.h-14.items-center.justify-center.gap-2.rounded-lg.bg-primary {
         position: relative;
@@ -97,7 +101,6 @@
         75%, 100% { transform: translateX(120%); }
       }
 
-      /* Stat tiles + secondary buttons */
       body.sc-on-yard #root .rounded-md.bg-elevated,
       body.sc-on-yard #root button.rounded-md.bg-elevated {
         border: 1px solid rgba(255,255,255,.06);
@@ -109,31 +112,22 @@
         transform: translateY(-1px);
       }
 
-      /* Week / roofs chips */
       body.sc-on-yard #root .bg-primary.text-primary-fg {
         box-shadow: 0 0 0 1px rgba(240,196,58,.25), 0 8px 20px rgba(240,196,58,.18);
       }
 
-      /* Hero: hide old art; show new solar rooftop (or CSS fallback) */
+      /* Restore girl hero photo on the left */
       body.sc-on-yard #root aside.relative.isolate {
-        background:
-          radial-gradient(900px 500px at 70% 35%, rgba(240,196,58,.22), transparent 55%),
-          radial-gradient(700px 420px at 20% 80%, rgba(56,189,248,.18), transparent 50%),
-          linear-gradient(165deg, #071018 0%, #0c2233 42%, #1a1408 100%);
+        background: #0b1620;
       }
       body.sc-on-yard #root aside.relative.isolate > img {
-        opacity: 0 !important;
+        opacity: 1 !important;
         pointer-events: none;
+        filter: saturate(1.06) contrast(1.03);
       }
       body.sc-on-yard #root aside.relative.isolate::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        z-index: 0;
-        background-image: url("/yard-bg.jpg?v=2");
-        background-size: cover;
-        background-position: center 40%;
-        filter: saturate(1.12) contrast(1.05);
+        display: none !important;
+        content: none !important;
       }
       body.sc-on-yard #root aside.relative.isolate::after {
         content: "";
@@ -142,11 +136,10 @@
         pointer-events: none;
         z-index: 1;
         background:
-          radial-gradient(80% 70% at 70% 40%, transparent 35%, rgba(7,13,20,.45) 100%),
-          linear-gradient(90deg, rgba(7,13,20,.72), transparent 42%);
+          radial-gradient(80% 70% at 40% 40%, transparent 40%, rgba(7,13,20,.28) 100%),
+          linear-gradient(90deg, transparent 45%, rgba(7,13,20,.55) 100%);
       }
 
-      /* Hackathon badge on yard only */
       #sc-hack-badge {
         display: none;
         position: fixed;
@@ -173,7 +166,6 @@
         box-shadow: 0 0 0 3px rgba(111,191,74,.25);
       }
 
-      /* —— In-game booth shortcuts: hidden on main menu —— */
       #sc-play-demo,
       #sc-slice-demo {
         position: fixed;
@@ -243,7 +235,6 @@
           return !!(hot && hot.classList.contains("on"));
         }
         function onYardMenu() {
-          // Yard home shows the Solarchik H1 + Play CLOCK IN CTA; hide shortcuts there.
           if (inGame()) return false;
           var root = document.getElementById("root");
           if (!root) return true;
