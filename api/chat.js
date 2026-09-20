@@ -3,7 +3,7 @@ const GEMINI_MODEL =
   process.env.GEMINI_MODEL || "gemini-flash-lite-latest";
 const FEATHERLESS_KEY = process.env.FEATHERLESS_API_KEY;
 const FEATHERLESS_MODEL =
-  process.env.FEATHERLESS_MODEL || "Qwen/Qwen2.5-7B-Instruct";
+  process.env.FEATHERLESS_MODEL || "mistralai/Mistral-Nemo-Instruct-2407";
 
 const friendInstruction = [
   "You are Solarchik (Sol), a warm, witty AI companion in a cozy solar-powered game.",
@@ -19,9 +19,7 @@ const friendInstruction = [
 function isGarbageReply(text) {
   const value = String(text || "").trim();
   if (value.length < 2 || value.length > 800) return true;
-  // Reject model breakdowns with CJK / Arabic / heavy symbol soup.
   const weird = (value.match(/[\u0400-\u04FF\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/g) || []).join("").length;
-  // Allow short Ukrainian if user asked for it, but for demo English prefer low weird ratio.
   if (weird > value.length * 0.25 && /[A-Za-z]/.test(value)) return true;
   if ((value.match(/[\u4E00-\u9FFF]/g) || []).length >= 2) return true;
   if ((value.match(/�/g) || []).length >= 1) return true;
@@ -185,27 +183,30 @@ export default async function handler(request, response) {
 
     response.setHeader("Cache-Control", "no-store");
 
+    // Gemini first = cleaner demo replies. Featherless stays as fallback for the prize track.
+    try {
+      const gemini = await askGemini(message, incoming.history);
+      return response.status(200).json({
+        ok: true,
+        reply: gemini.reply,
+        provider: "gemini",
+        model: gemini.model,
+        fallback: false,
+      });
+    } catch (_) {}
+
     if (FEATHERLESS_KEY) {
-      try {
-        const reply = await askFeatherless(message, incoming.history);
-        return response.status(200).json({
-          ok: true,
-          reply,
-          provider: "featherless",
-          model: FEATHERLESS_MODEL,
-          fallback: false,
-        });
-      } catch (_) {}
+      const reply = await askFeatherless(message, incoming.history);
+      return response.status(200).json({
+        ok: true,
+        reply,
+        provider: "featherless",
+        model: FEATHERLESS_MODEL,
+        fallback: true,
+      });
     }
 
-    const gemini = await askGemini(message, incoming.history);
-    return response.status(200).json({
-      ok: true,
-      reply: gemini.reply,
-      provider: "gemini",
-      model: gemini.model,
-      fallback: Boolean(FEATHERLESS_KEY),
-    });
+    throw Object.assign(new Error("ai_unavailable"), { statusCode: 503 });
   } catch (error) {
     response.setHeader("Cache-Control", "no-store");
     const status = error?.statusCode || 503;
