@@ -1,8 +1,6 @@
 /* Vercel bridge for Solarchik CLOCK IN. API credentials never enter the browser. */
 (() => {
   const CHAT_URL = "https://friend.solardepin.net/v1/chat";
-  let recognition = null;
-  let micStream = null;
   let activeSpeech = null;
 
   const reply = (id, data) => {
@@ -16,71 +14,6 @@
     if (/^es/i.test(raw)) return "es-ES";
     return "en-US";
   };
-
-  const toast = (message) => {
-    let box = document.getElementById("sc-voice-status");
-    if (!box) {
-      box = document.createElement("div");
-      box.id = "sc-voice-status";
-      box.style.cssText = "position:fixed;z-index:9999;left:50%;bottom:108px;transform:translateX(-50%);max-width:88vw;padding:8px 13px;border-radius:18px;background:#152b3a;color:#fff;font:600 13px system-ui;text-align:center";
-      document.body.appendChild(box);
-    }
-    box.textContent = message;
-    box.hidden = false;
-    clearTimeout(box._timer);
-    box._timer = setTimeout(() => { box.hidden = true; }, 3600);
-  };
-
-  const stopMicrophone = () => {
-    try { if (recognition) recognition.stop(); } catch (_) {}
-    recognition = null;
-    if (micStream) micStream.getTracks().forEach((track) => track.stop());
-    micStream = null;
-  };
-
-  async function listen(id, requestedLocale) {
-    stopMicrophone();
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast("Голосове введення доступне у Chrome на Android.");
-      reply(id, { ok: false, error: "speech_recognition_unsupported" });
-      return;
-    }
-    try {
-      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (_) {
-      toast("Дозволь мікрофон для цієї сторінки у Chrome.");
-      reply(id, { ok: false, error: "microphone_permission" });
-      return;
-    }
-
-    const rec = new SpeechRecognition();
-    recognition = rec;
-    rec.lang = locale(requestedLocale);
-    rec.interimResults = true;
-    rec.continuous = false;
-    rec.maxAlternatives = 1;
-    let finalText = "";
-    let ended = false;
-    const finish = () => {
-      if (ended) return;
-      ended = true;
-      if (recognition === rec) stopMicrophone();
-      const text = finalText.trim();
-      reply(id, text ? { ok: true, text } : { ok: false, error: "no_speech" });
-    };
-    rec.onresult = (event) => {
-      finalText = Array.from(event.results).map((result) => result[0].transcript).join(" ");
-      toast("«" + finalText.slice(0, 80) + "»");
-    };
-    rec.onerror = (event) => {
-      if (event.error === "not-allowed") toast("Chrome не отримав доступ до мікрофона.");
-      else if (event.error !== "aborted" && event.error !== "no-speech") toast("Мікрофон: " + event.error);
-      finish();
-    };
-    rec.onend = finish;
-    try { rec.start(); toast("Слухаю…"); } catch (_) { finish(); }
-  }
 
   function speak(text, requestedLocale) {
     const message = String(text || "").trim();
@@ -108,7 +41,9 @@
         text: String(turn.parts?.[0]?.text || "").trim(),
       })).filter((turn) => turn.text).slice(-8);
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 9000);
+      // The Worker has its own provider timeout. This just prevents a browser
+      // from sitting on a dead connection for too long.
+      const timeout = setTimeout(() => controller.abort(), 5500);
       const response = await fetch(CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -125,10 +60,10 @@
     }
   }
 
+  // Voice recognition stays inside the game bundle. It directly uses
+  // Chrome's SpeechRecognition and its browser fallback on Android.
   window.SolarchikNative = {
     ask,
-    listen,
-    stopListen: stopMicrophone,
     speak,
     hush() { try { speechSynthesis.cancel(); } catch (_) {} },
   };
