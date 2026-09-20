@@ -59,6 +59,9 @@ async function askFeatherless(message, history) {
       Authorization: `Bearer ${FEATHERLESS_KEY}`,
       "HTTP-Referer": "https://solarchik-super-app.vercel.app",
       "X-Title": "Solarchik",
+      // Cloudflare on Featherless blocks empty/bot UAs from some hosts (error 1010).
+      "User-Agent":
+        "Mozilla/5.0 (compatible; Solarchik/1.0; +https://solarchik-super-app.vercel.app)",
     },
     body: JSON.stringify({
       model: FEATHERLESS_MODEL,
