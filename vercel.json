@@ -1,3 +1,19 @@
 {
-  "cleanUrls": true
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Permissions-Policy", "value": "microphone=*, camera=(), geolocation=(), autoplay=*" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/assets/:path*", "destination": "https://solarchik-friend.netlify.app/assets/:path*" },
+    { "source": "/sprites/:path*", "destination": "https://solarchik-friend.netlify.app/sprites/:path*" },
+    { "source": "/audio/:path*", "destination": "https://solarchik-friend.netlify.app/audio/:path*" },
+    { "source": "/yard-bg.jpg", "destination": "https://solarchik-friend.netlify.app/yard-bg.jpg" },
+    { "source": "/favicon.svg", "destination": "https://solarchik-friend.netlify.app/favicon.svg" }
+  ]
 }
