@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#0b1620" />
+    <meta http-equiv="Permissions-Policy" content="microphone=*, autoplay=*" />
+    <title>Solarchik CLOCK IN</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+      html, body, #root { height: 100%; margin: 0; background: #0b1620; color: #e8f0f5; }
+      #boot { padding: 2rem; font: 600 18px/1.4 Nunito, system-ui, sans-serif; }
+    </style>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <link rel="stylesheet" href="/assets/booth.css?v=11" />
+  </head>
+  <body>
+    <div id="root"><p id="boot">Solarchik…</p></div>
+    <script>
+      window.onerror = function (message) {
+        var target = document.getElementById("boot") || document.getElementById("root");
+        if (target) target.textContent = String(message || "error");
+      };
+    </script>
+    <script src="/assets/native.js?v=13"></script>
+    <script src="/web-native.js?v=13"></script>
+    <script src="/assets/booth.js?v=11"></script>
+  </body>
+</html>
