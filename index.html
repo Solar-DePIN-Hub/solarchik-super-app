@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="sc-booting">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
@@ -10,6 +10,47 @@
     <style>
       html, body, #root { height: 100%; margin: 0; background: #070d14; color: #e8f0f5; }
       #boot { padding: 2rem; font: 600 18px/1.4 Nunito, system-ui, sans-serif; }
+
+      /* Hide first paint until yard shell is ready (kills old-layout flash) */
+      html.sc-booting #root { opacity: 0; }
+      html:not(.sc-booting) #root { opacity: 1; transition: opacity .12s ease; }
+
+      /* Structural layout ALWAYS — do not wait for body.sc-on-yard */
+      #root .mx-auto.flex.min-h-dvh.w-full.max-w-6xl,
+      #root .mx-auto.flex.w-full.max-w-6xl {
+        max-width: none !important;
+        width: 100% !important;
+        margin-inline: 0 !important;
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+      }
+      #root .relative.z-10.mx-auto.flex.min-h-0.w-full.max-w-lg {
+        max-width: none !important;
+        margin-inline: 0 !important;
+        width: 100% !important;
+      }
+      @media (min-width: 1024px) {
+        #root aside.relative.isolate {
+          order: 0 !important;
+          width: 50% !important;
+          max-width: none !important;
+          flex: 0 0 50% !important;
+        }
+        #root .relative.flex.min-h-0.flex-1.flex-col {
+          order: 2 !important;
+          flex: 1 1 50% !important;
+          max-width: none !important;
+          width: 50% !important;
+          min-width: 0 !important;
+        }
+        #root .relative.flex.min-h-0.flex-1.flex-col > .relative.z-10 {
+          max-width: none !important;
+          margin-inline: 0 !important;
+          width: 100% !important;
+          padding-inline: 1.75rem !important;
+        }
+      }
+
 
       :root {
         --color-bg: #070d14;
@@ -92,7 +133,7 @@
         color: transparent !important;
       }
 
-      body.sc-on-yard #root p.text-sm.font-semibold.tracking-\[0\.18em\].text-primary {
+      body.sc-on-yard #root p.text-sm.font-semibold.tracking-\\[0\\.18em\\].text-primary {
         letter-spacing: 0.22em !important;
         text-transform: uppercase;
         opacity: 0.95;
@@ -237,7 +278,7 @@
     <link rel="stylesheet" href="/assets/style.css" />
     <link rel="stylesheet" href="/assets/booth.css?v=11" />
   </head>
-  <body>
+  <body class="sc-on-yard">
     <div id="root"><p id="boot">Solarchik…</p></div>
     <div id="sc-hack-badge"><i></i> MunichTech · Live demo</div>
     <a
@@ -260,6 +301,13 @@
         if (target) target.textContent = String(message || "error");
       };
       (function syncBoothShortcuts() {
+        var started = Date.now();
+        var revealed = false;
+        function reveal() {
+          if (revealed) return;
+          revealed = true;
+          document.documentElement.classList.remove("sc-booting");
+        }
         function inGame() {
           var hot = document.getElementById("sc-booth-hot");
           return !!(hot && hot.classList.contains("on"));
@@ -268,6 +316,7 @@
           if (inGame()) return false;
           var root = document.getElementById("root");
           if (!root) return true;
+          if (root.querySelector("aside.relative.isolate")) return true;
           var text = (root.innerText || "").slice(0, 1200);
           return /DAILY YARD|Play — CLOCK IN|CLOCK IN/i.test(text);
         }
@@ -275,16 +324,29 @@
           var game = inGame();
           var yard = onYardMenu();
           document.body.classList.toggle("sc-in-game", game);
-          document.body.classList.toggle("sc-on-yard", yard && !game);
+          if (game) document.body.classList.remove("sc-on-yard");
+          else if (yard) document.body.classList.add("sc-on-yard");
+          else if (Date.now() - started > 900) document.body.classList.remove("sc-on-yard");
           ["sc-play-demo", "sc-slice-demo"].forEach(function (id) {
             var btn = document.getElementById(id);
             if (!btn) return;
             if (game) btn.classList.add("visible");
             else btn.classList.remove("visible");
           });
+          if (document.querySelector("#root aside.relative.isolate") || Date.now() - started > 1200) {
+            reveal();
+          }
         }
         tick();
-        setInterval(tick, 350);
+        setInterval(tick, 120);
+        var root = document.getElementById("root");
+        if (root && window.MutationObserver) {
+          var mo = new MutationObserver(function () {
+            tick();
+            if (revealed) mo.disconnect();
+          });
+          mo.observe(root, { childList: true, subtree: true });
+        }
       })();
     </script>
     <script src="/assets/native.js?v=13"></script>
