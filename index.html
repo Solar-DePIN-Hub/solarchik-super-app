@@ -10,16 +10,14 @@
     <style>
       html, body, #root { height: 100%; margin: 0; background: #0b1620; color: #e8f0f5; }
       #boot { padding: 2rem; font: 600 18px/1.4 Nunito, system-ui, sans-serif; }
-      /* Play Demo — under the red Secretary pill */
-      #sc-play-demo {
+      /* Shared pill style for booth shortcuts */
+      #sc-play-demo,
+      #sc-slice-demo {
         position: fixed;
-        right: calc(4% + 10px);
-        top: calc(12% + 44px);
         z-index: 45;
         display: none;
         align-items: center;
         justify-content: center;
-        background: #1565c0;
         color: #fff;
         font: 700 11px/1.1 Nunito, system-ui, sans-serif;
         letter-spacing: 0.06em;
@@ -32,12 +30,30 @@
         cursor: pointer;
         white-space: nowrap;
       }
-      #sc-play-demo.visible { display: inline-flex; }
+      #sc-play-demo.visible,
+      #sc-slice-demo.visible { display: inline-flex; }
+      /* Play Demo — under the red Secretary pill (right) */
+      #sc-play-demo {
+        right: calc(4% + 10px);
+        top: calc(12% + 44px);
+        background: #1565c0;
+      }
       #sc-play-demo:hover { background: #1976d2; }
+      /* Slice — left side, opposite Secretary */
+      #sc-slice-demo {
+        left: calc(4% + 10px);
+        top: calc(12% + 10px);
+        background: #6a1b9a;
+      }
+      #sc-slice-demo:hover { background: #8e24aa; }
       @media (max-width: 720px) {
         #sc-play-demo {
           right: 10px;
           top: calc(10% + 44px);
+        }
+        #sc-slice-demo {
+          left: 10px;
+          top: calc(10% + 10px);
         }
       }
     </style>
@@ -46,6 +62,13 @@
   </head>
   <body>
     <div id="root"><p id="boot">Solarchik…</p></div>
+    <a
+      id="sc-slice-demo"
+      href="https://slice-solana.netlify.app/"
+      target="_blank"
+      rel="noopener noreferrer"
+      >Slice</a
+    >
     <a
       id="sc-play-demo"
       href="https://solar-screen-demo.netlify.app/"
@@ -58,17 +81,12 @@
         var target = document.getElementById("boot") || document.getElementById("root");
         if (target) target.textContent = String(message || "error");
       };
-      (function syncPlayDemo() {
+      (function syncBoothShortcuts() {
         function tick() {
-          var hot = document.getElementById("sc-booth-hot");
-          var btn = document.getElementById("sc-play-demo");
-          if (!btn) return;
-          // Show with the Secretary hotzone when it appears; otherwise keep visible for the demo.
-          if (!hot || hot.classList.contains("on") || hot.style.display === "block") {
-            btn.classList.add("visible");
-          } else {
-            btn.classList.add("visible");
-          }
+          ["sc-play-demo", "sc-slice-demo"].forEach(function (id) {
+            var btn = document.getElementById(id);
+            if (btn) btn.classList.add("visible");
+          });
         }
         tick();
         setInterval(tick, 400);
