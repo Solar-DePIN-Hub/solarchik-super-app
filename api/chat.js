@@ -1,5 +1,9 @@
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-const API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL =
+  process.env.GEMINI_MODEL || "gemini-flash-lite-latest";
+const FEATHERLESS_KEY = process.env.FEATHERLESS_API_KEY;
+const FEATHERLESS_MODEL =
+  process.env.FEATHERLESS_MODEL || "Qwen/Qwen2.5-7B-Instruct";
 
 const friendInstruction = [
   "You are Solarchik (Sol), a warm, witty AI companion in a cozy solar-powered game.",
@@ -11,7 +15,7 @@ const friendInstruction = [
   "Do not claim to be human. Be honest when you do not know something.",
 ].join(" ");
 
-function mapHistory(history) {
+function mapHistoryForGemini(history) {
   if (!Array.isArray(history)) return [];
   return history
     .map((entry) => {
@@ -25,32 +29,98 @@ function mapHistory(history) {
     .slice(-12);
 }
 
+function mapHistoryForFeatherless(history) {
+  if (!Array.isArray(history)) return [];
+  return history
+    .map((entry) => {
+      const text = String(entry?.text || entry?.parts?.[0]?.text || "").trim();
+      if (!text) return null;
+      const role =
+        entry?.role === "model" || entry?.role === "assistant"
+          ? "assistant"
+          : "user";
+      return { role, content: text };
+    })
+    .filter(Boolean)
+    .slice(-12);
+}
+
+async function askFeatherless(message, history) {
+  if (!FEATHERLESS_KEY) {
+    const error = new Error("missing_featherless_key");
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const response = await fetch("https://api.featherless.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${FEATHERLESS_KEY}`,
+      "HTTP-Referer": "https://solarchik-super-app.vercel.app",
+      "X-Title": "Solarchik",
+    },
+    body: JSON.stringify({
+      model: FEATHERLESS_MODEL,
+      temperature: 0.9,
+      max_tokens: 220,
+      messages: [
+        { role: "system", content: friendInstruction },
+        ...mapHistoryForFeatherless(history),
+        { role: "user", content: String(message) },
+      ],
+    }),
+    signal: AbortSignal.timeout(25000),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(`featherless_${response.status}`);
+    error.statusCode = response.status === 429 ? 429 : 502;
+    error.publicMessage =
+      response.status === 429 ? "provider_rate_limited" : "ai_provider_unavailable";
+    throw error;
+  }
+
+  const reply = String(body?.choices?.[0]?.message?.content || "").trim();
+  if (!reply || reply.length < 2) {
+    const error = new Error("empty_featherless_reply");
+    error.statusCode = 502;
+    throw error;
+  }
+  return reply;
+}
+
 async function askGemini(message, history) {
-  if (!API_KEY || API_KEY.includes("PASTE_")) {
+  if (!GEMINI_KEY || GEMINI_KEY.includes("PASTE_")) {
     const error = new Error("missing_gemini_key");
     error.statusCode = 503;
     throw error;
   }
 
-  const contents = [
-    ...mapHistory(history),
-    { role: "user", parts: [{ text: String(message) }] },
-  ];
+  const models = [
+    GEMINI_MODEL,
+    "gemini-flash-lite-latest",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+  ].filter((value, index, list) => value && list.indexOf(value) === index);
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`;
   let lastError;
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (const model of models) {
     try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-goog-api-key": API_KEY,
+          "x-goog-api-key": GEMINI_KEY,
         },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: friendInstruction }] },
-          contents,
+          contents: [
+            ...mapHistoryForGemini(history),
+            { role: "user", parts: [{ text: String(message) }] },
+          ],
           generationConfig: {
             temperature: 0.9,
             maxOutputTokens: 512,
@@ -65,25 +135,20 @@ async function askGemini(message, history) {
           .map((part) => part.text || "")
           .join("")
           .trim();
-        if (reply && reply.length >= 2) return reply;
+        if (reply && reply.length >= 2) return { reply, model };
         lastError = Object.assign(new Error("empty_gemini_reply"), { statusCode: 502 });
-      } else {
-        const retryable = [429, 500, 502, 503, 504].includes(response.status);
-        lastError = Object.assign(
-          new Error(`gemini_${response.status}`),
-          {
-            statusCode: response.status === 429 ? 429 : 502,
-            publicMessage:
-              response.status === 429 ? "provider_rate_limited" : "ai_provider_unavailable",
-          },
-        );
-        if (!retryable || attempt === 2) throw lastError;
+        continue;
       }
+
+      lastError = Object.assign(new Error(`gemini_${response.status}`), {
+        statusCode: response.status === 429 ? 429 : 502,
+        publicMessage:
+          response.status === 429 ? "provider_rate_limited" : "ai_provider_unavailable",
+      });
+      if (response.status !== 429 && response.status !== 404) break;
     } catch (error) {
       lastError = error;
-      if (attempt === 2 || error?.statusCode === 429) throw error;
     }
-    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
   }
 
   throw lastError || Object.assign(new Error("gemini_failed"), { statusCode: 502 });
@@ -102,17 +167,44 @@ export default async function handler(request, response) {
       return response.status(400).json({ error: "message_must_be_1_to_2000_characters" });
     }
 
-    const reply = await askGemini(message, incoming.history);
     response.setHeader("Cache-Control", "no-store");
+
+    // Featherless first = Best Featherless prize eligibility + reliable chat.
+    if (FEATHERLESS_KEY) {
+      try {
+        const reply = await askFeatherless(message, incoming.history);
+        return response.status(200).json({
+          ok: true,
+          reply,
+          provider: "featherless",
+          model: FEATHERLESS_MODEL,
+          fallback: false,
+        });
+      } catch (_) {
+        // Fall through to Gemini.
+      }
+    }
+
+    const gemini = await askGemini(message, incoming.history);
     return response.status(200).json({
       ok: true,
-      reply,
+      reply: gemini.reply,
       provider: "gemini",
-      fallback: false,
+      model: gemini.model,
+      fallback: Boolean(FEATHERLESS_KEY),
     });
   } catch (error) {
     response.setHeader("Cache-Control", "no-store");
     const status = error?.statusCode || 503;
+    // Soft Ukrainian recovery text so the game does not show the English catchphrase.
+    if (status === 429) {
+      return response.status(200).json({
+        ok: true,
+        reply: "Я трохи перевантажений зараз. Напиши ще раз за мить — я тут.",
+        provider: "soft_fallback",
+        fallback: true,
+      });
+    }
     return response.status(status).json({
       ok: false,
       error: error?.publicMessage || error?.message || "ai_unavailable",
