@@ -114,19 +114,36 @@
         box-shadow: 0 0 0 1px rgba(240,196,58,.25), 0 8px 20px rgba(240,196,58,.18);
       }
 
-      /* Hero image vignette */
-      body.sc-on-yard #root aside.relative.isolate img {
-        filter: saturate(1.08) contrast(1.04);
+      /* Hero: hide old art; show new solar rooftop (or CSS fallback) */
+      body.sc-on-yard #root aside.relative.isolate {
+        background:
+          radial-gradient(900px 500px at 70% 35%, rgba(240,196,58,.22), transparent 55%),
+          radial-gradient(700px 420px at 20% 80%, rgba(56,189,248,.18), transparent 50%),
+          linear-gradient(165deg, #071018 0%, #0c2233 42%, #1a1408 100%);
+      }
+      body.sc-on-yard #root aside.relative.isolate > img {
+        opacity: 0 !important;
+        pointer-events: none;
+      }
+      body.sc-on-yard #root aside.relative.isolate::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        background-image: url("/yard-bg.jpg?v=2");
+        background-size: cover;
+        background-position: center 40%;
+        filter: saturate(1.12) contrast(1.05);
       }
       body.sc-on-yard #root aside.relative.isolate::after {
         content: "";
         position: absolute;
         inset: 0;
         pointer-events: none;
-        background:
-          radial-gradient(80% 70% at 70% 40%, transparent 40%, rgba(7,13,20,.35) 100%),
-          linear-gradient(90deg, rgba(7,13,20,.55), transparent 35%);
         z-index: 1;
+        background:
+          radial-gradient(80% 70% at 70% 40%, transparent 35%, rgba(7,13,20,.45) 100%),
+          linear-gradient(90deg, rgba(7,13,20,.72), transparent 42%);
       }
 
       /* Hackathon badge on yard only */
