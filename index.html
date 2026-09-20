@@ -7,11 +7,11 @@
     <meta http-equiv="Permissions-Policy" content="microphone=*, autoplay=*" />
     <title>Solarchik CLOCK IN</title>
     <!-- This must be loaded before <base>: it is the Vercel-side bridge to the
-         Worker. Everything after <base> intentionally uses the original static game. -->
+         AI server. Everything after <base> intentionally uses the original static game. -->
     <script>
       // A root-relative src would also inherit the Netlify <base>. Build this URL
       // from the current Vercel (or localhost) origin so the bridge never escapes.
-      document.write('<script src="' + location.origin + '/web-native.js?v=6"><\/script>');
+      document.write('<script src="' + location.origin + '/web-native.js?v=7"><\/script>');
     </script>
     <base href="https://solarchik-friend.netlify.app/" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -34,7 +34,7 @@
     <script>
       // The original bundle writes its own native bridge. Load our Vercel
       // bridge once more so chat and voice cannot fall back to Netlify.
-      document.write('<script src="' + location.origin + '/web-native.js?v=6"><\/script>');
+      document.write('<script src="' + location.origin + '/web-native.js?v=7"><\/script>');
     </script>
     <script src="./assets/booth.js?v=11"></script>
   </body>
