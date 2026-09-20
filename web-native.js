@@ -18,6 +18,7 @@
     if (/^ru/i.test(raw)) return "ru-RU";
     if (/^es/i.test(raw)) return "es-ES";
     if (/^en/i.test(raw)) return "en-US";
+    // Voice names like eve/rex/leo are not locales — fall back to browser language.
     if (/^(eve|rex|leo|ara|sunny|dry)$/i.test(raw)) {
       return locale(navigator.language || "uk-UA");
     }
@@ -27,6 +28,7 @@
   const unlockSpeech = () => {
     try {
       window.speechSynthesis?.getVoices();
+      // Some Chromium builds stay silent until a no-op utterance runs after a gesture.
       if (!window.__solarchikSpeechUnlocked && window.speechSynthesis) {
         const warm = new SpeechSynthesisUtterance(" ");
         warm.volume = 0;
@@ -53,7 +55,9 @@
         voices[0];
       if (voice) utterance.voice = voice;
       const start = () => {
-        try { window.speechSynthesis.speak(utterance); } catch (_) {}
+        try {
+          window.speechSynthesis.speak(utterance);
+        } catch (_) {}
       };
       if (!voices.length) {
         window.speechSynthesis.addEventListener("voiceschanged", start, { once: true });
@@ -110,7 +114,10 @@
         speak(text, locale());
         reply(requestId, { ok: true, text });
       } else {
-        reply(requestId, { ok: false, error: result.error || "ai_unavailable" });
+        reply(requestId, {
+          ok: false,
+          error: result.error || "ai_unavailable",
+        });
       }
     } catch (error) {
       reply(requestId, { ok: false, error: error?.name === "AbortError" ? "timeout" : "network" });
@@ -136,6 +143,8 @@
     }
   }
 
+  // Hold-to-talk session. The game calls listen() on pointerdown and
+  // stopListen() on pointerup (via SolarchikNative.stopListen).
   let listenSession = null;
 
   const warmMic = () => {
@@ -143,7 +152,9 @@
       navigator.mediaDevices
         ?.getUserMedia?.({ audio: true })
         .then((stream) => {
-          try { stream.getTracks().forEach((track) => track.stop()); } catch (_) {}
+          try {
+            stream.getTracks().forEach((track) => track.stop());
+          } catch (_) {}
         })
         .catch(() => {});
     } catch (_) {}
@@ -156,6 +167,7 @@
       return;
     }
 
+    // Replace any prior session.
     if (listenSession) {
       try {
         listenSession.recognition.onresult = null;
@@ -163,7 +175,9 @@
         listenSession.recognition.onend = null;
         listenSession.recognition.stop();
       } catch (_) {}
-      try { listenSession.finish({ ok: false, error: "aborted" }); } catch (_) {}
+      try {
+        listenSession.finish({ ok: false, error: "aborted" });
+      } catch (_) {}
       listenSession = null;
     }
 
@@ -205,15 +219,23 @@
 
       recognition.onerror = (event) => {
         const code = String(event?.error || "speech_error");
-        if (code === "no-speech" || code === "aborted" || code === "audio-capture") return;
+        // Soft errors while still holding — keep waiting for stopListen.
+        if (code === "no-speech" || code === "aborted" || code === "audio-capture") {
+          return;
+        }
         if (code === "not-allowed" || code === "service-not-allowed") {
           finish({ ok: false, error: "mic_blocked" });
         }
       };
 
       recognition.onend = () => {
+        // Chrome ends continuous sessions between phrases; restart while held.
         if (!settled && listenSession && listenSession.requestId === String(requestId)) {
-          try { recognition.start(); } catch (_) {}
+          try {
+            recognition.start();
+          } catch (_) {
+            // Will be finalized by stopListen or timeout in the game.
+          }
         }
       };
 
@@ -233,7 +255,9 @@
     if (!listenSession) return;
     const text = String(listenSession.getTranscript() || "").trim();
     const finish = listenSession.finish;
-    try { listenSession.recognition.stop(); } catch (_) {}
+    try {
+      listenSession.recognition.stop();
+    } catch (_) {}
     finish(text ? { ok: true, text } : { ok: false, error: "no_speech" });
   }
 
@@ -245,7 +269,9 @@
     stopListen,
     speak,
     hush() {
-      try { window.speechSynthesis?.cancel(); } catch (_) {}
+      try {
+        window.speechSynthesis?.cancel();
+      } catch (_) {}
     },
   };
 
