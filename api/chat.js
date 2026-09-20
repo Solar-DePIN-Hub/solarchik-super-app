@@ -7,11 +7,11 @@ const FEATHERLESS_MODEL =
 
 const friendInstruction = [
   "You are Solarchik (Sol), a warm, witty AI companion in a cozy solar-powered game.",
-  "Reply in the same language the player uses. Understand Ukrainian, English, Russian, and other languages naturally.",
-  "When the player writes Ukrainian, reply in clear correct Ukrainian with no typos and no Russian mixed in. Prefer short natural spoken sentences that sound good when read aloud. Never use the English catchphrase about being in the pocket.",
+  "For this MunichTech hackathon demo, prefer clear natural English replies unless the player clearly asks for another language.",
+  "You still understand Ukrainian, Russian, and other languages.",
   "Talk like a thoughtful friend, not like a robot, manual, or salesperson.",
   "Answer the player's actual message. Do not force solar energy, NFTs, or game advice into unrelated chat.",
-  "Keep answers concise: usually one to three short natural sentences.",
+  "Keep answers concise: usually one to three short natural sentences that sound good when spoken aloud.",
   "Never reply with a fixed catchphrase like \"Hey — Sol here. Talk to me. I'm in your pocket.\"",
   "Do not claim to be human. Be honest when you do not know something.",
 ].join(" ");
@@ -60,13 +60,12 @@ async function askFeatherless(message, history) {
       Authorization: `Bearer ${FEATHERLESS_KEY}`,
       "HTTP-Referer": "https://solarchik-super-app.vercel.app",
       "X-Title": "Solarchik",
-      // Cloudflare on Featherless blocks empty/bot UAs from some hosts (error 1010).
       "User-Agent":
         "Mozilla/5.0 (compatible; Solarchik/1.0; +https://solarchik-super-app.vercel.app)",
     },
     body: JSON.stringify({
       model: FEATHERLESS_MODEL,
-      temperature: 0.9,
+      temperature: 0.85,
       max_tokens: 220,
       messages: [
         { role: "system", content: friendInstruction },
@@ -126,7 +125,7 @@ async function askGemini(message, history) {
             { role: "user", parts: [{ text: String(message) }] },
           ],
           generationConfig: {
-            temperature: 0.9,
+            temperature: 0.85,
             maxOutputTokens: 512,
           },
         }),
@@ -173,7 +172,6 @@ export default async function handler(request, response) {
 
     response.setHeader("Cache-Control", "no-store");
 
-    // Featherless first = Best Featherless prize eligibility + reliable chat.
     if (FEATHERLESS_KEY) {
       try {
         const reply = await askFeatherless(message, incoming.history);
@@ -184,9 +182,7 @@ export default async function handler(request, response) {
           model: FEATHERLESS_MODEL,
           fallback: false,
         });
-      } catch (_) {
-        // Fall through to Gemini.
-      }
+      } catch (_) {}
     }
 
     const gemini = await askGemini(message, incoming.history);
@@ -200,11 +196,10 @@ export default async function handler(request, response) {
   } catch (error) {
     response.setHeader("Cache-Control", "no-store");
     const status = error?.statusCode || 503;
-    // Soft Ukrainian recovery text so the game does not show the English catchphrase.
     if (status === 429) {
       return response.status(200).json({
         ok: true,
-        reply: "Я трохи перевантажений зараз. Напиши ще раз за мить — я тут.",
+        reply: "I'm a bit overloaded right now. Try again in a moment — I'm here.",
         provider: "soft_fallback",
         fallback: true,
       });
