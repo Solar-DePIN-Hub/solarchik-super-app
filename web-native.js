@@ -70,14 +70,12 @@
         .filter((entry) => entry.text)
         .slice(-8);
 
-      // The Worker performs a Featherless attempt followed by Gemini. Leave
-      // enough time for the real second provider instead of cancelling it at
-      // the old bridge's 5.5-second cutoff.
+      // Gemini via ai.solardepin.net can take longer than the old dual-provider path.
       const response = await withTimeout(`${api}/chat`, {
         message,
         history,
         language: locale(),
-      }, 8000);
+      }, 20000);
       const result = await response.json().catch(() => ({}));
       const text = String(result.reply || result.text || result.message || "").trim();
       reply(requestId, response.ok && text ? { ok: true, text } : {
@@ -99,7 +97,7 @@
       }, 12000);
       const result = await response.json().catch(() => ({}));
       const text = String(result.text || "").trim();
-      reply(requestId, response.ok && result.ok && text ? { ok: true, text} : {
+      reply(requestId, response.ok && result.ok && text ? { ok: true, text } : {
         ok: false,
         error: result.error || "transcription_unavailable",
       });
