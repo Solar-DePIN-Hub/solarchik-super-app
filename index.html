@@ -1,1 +1,350 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="en" class="sc-booting">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#070d14" />
+    <meta http-equiv="Permissions-Policy" content="microphone=*, autoplay=*" />
+    <title>Solarchik CLOCK IN</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+      html, body, #root { height: 100%; margin: 0; background: #070d14; color: #e8f0f5; }
+      #boot { padding: 2rem; font: 600 18px/1.4 Nunito, system-ui, sans-serif; }
+
+      /* Hide first paint until yard shell is ready (kills old-layout flash) */
+      html.sc-booting #root { opacity: 0; }
+      html:not(.sc-booting) #root { opacity: 1; transition: opacity .12s ease; }
+
+      :root {
+        --color-bg: #070d14;
+        --color-surface: #0f1c28cc;
+        --color-elevated: #173246;
+        --color-fg: #f2f7fb;
+        --color-muted: #93a9b8;
+        --color-primary: #f0c43a;
+        --color-primary-fg: #0a1218;
+        --color-border: #ffffff22;
+        --shadow-card: 0 18px 50px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
+      }
+
+      /* In-game room: do NOT stretch — restore default app layout */
+      body.sc-in-game #root .mx-auto.flex.min-h-dvh.w-full.max-w-6xl,
+      body.sc-in-game #root .mx-auto.flex.w-full.max-w-6xl {
+        max-width: var(--container-6xl, 72rem) !important;
+        width: 100% !important;
+        margin-inline: auto !important;
+        height: auto !important;
+        min-height: 100dvh !important;
+      }
+      body.sc-in-game #root .relative.z-10.mx-auto.flex.min-h-0.w-full.max-w-lg {
+        max-width: var(--container-lg, 32rem) !important;
+        margin-inline: auto !important;
+      }
+      @media (min-width: 1024px) {
+        body.sc-in-game #root aside.relative.isolate {
+          order: 2 !important;
+          width: 54% !important;
+          flex: none !important;
+        }
+        body.sc-in-game #root .relative.flex.min-h-0.flex-1.flex-col {
+          order: 0 !important;
+          width: auto !important;
+          flex: 1 1 0% !important;
+        }
+        body.sc-in-game #root .relative.flex.min-h-0.flex-1.flex-col > .relative.z-10 {
+          max-width: var(--container-lg, 32rem) !important;
+          margin-inline: auto !important;
+          padding-inline: revert !important;
+        }
+      }
+
+      body.sc-on-yard {
+        background:
+          radial-gradient(1200px 600px at 85% -10%, rgba(240,196,58,.14), transparent 55%),
+          radial-gradient(900px 500px at 10% 10%, rgba(56,189,248,.10), transparent 50%),
+          #070d14;
+      }
+      body.sc-on-yard #root { background: transparent; }
+
+      /* Full-bleed yard: edge to edge, no max-w-6xl letterbox */
+      body.sc-on-yard #root .mx-auto.flex.min-h-dvh.w-full.max-w-6xl,
+      body.sc-on-yard #root .mx-auto.flex.w-full.max-w-6xl {
+        max-width: none !important;
+        width: 100% !important;
+        margin-inline: 0 !important;
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+      }
+
+      /* Inner menu column: drop max-w-lg so it fills the right half */
+      body.sc-on-yard #root .relative.z-10.mx-auto.flex.min-h-0.w-full.max-w-lg {
+        max-width: none !important;
+        margin-inline: 0 !important;
+        width: 100% !important;
+      }
+
+      /* Desktop: photo LEFT, menu RIGHT, both stretch to viewport edges */
+      @media (min-width: 1024px) {
+        body.sc-on-yard #root aside.relative.isolate {
+          order: 0 !important;
+          width: 50% !important;
+          max-width: none !important;
+          flex: 0 0 50% !important;
+        }
+        body.sc-on-yard #root .relative.flex.min-h-0.flex-1.flex-col {
+          order: 2 !important;
+          flex: 1 1 50% !important;
+          max-width: none !important;
+          width: 50% !important;
+          min-width: 0 !important;
+        }
+        body.sc-on-yard #root .relative.flex.min-h-0.flex-1.flex-col > .relative.z-10 {
+          max-width: none !important;
+          margin-inline: 0 !important;
+          width: 100% !important;
+          padding-inline: 1.75rem !important;
+        }
+      }
+
+      body.sc-on-yard #root .relative.flex.min-h-0.flex-1.flex-col {
+        backdrop-filter: blur(10px);
+      }
+
+      body.sc-on-yard #root .rounded-xl.bg-surface,
+      body.sc-on-yard #root .rounded-lg.bg-surface,
+      body.sc-on-yard #root .rounded-md.bg-surface {
+        background: linear-gradient(160deg, rgba(22,38,52,.92), rgba(12,24,34,.88)) !important;
+        border: 1px solid rgba(255,255,255,.08);
+        box-shadow: var(--shadow-card);
+        backdrop-filter: blur(14px);
+      }
+
+      body.sc-on-yard #root .font-display.text-4xl {
+        letter-spacing: -0.03em;
+        background: linear-gradient(120deg, #fff 20%, #f0c43a 55%, #7dd3fc 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent !important;
+      }
+
+      body.sc-on-yard #root p.text-sm.font-semibold.tracking-\\[0\\.18em\\].text-primary {
+        letter-spacing: 0.22em !important;
+        text-transform: uppercase;
+        opacity: 0.95;
+      }
+
+      body.sc-on-yard #root button.bg-primary.h-14,
+      body.sc-on-yard #root button.flex.h-14.items-center.justify-center.gap-2.rounded-lg.bg-primary {
+        position: relative;
+        overflow: hidden;
+        box-shadow:
+          0 0 0 1px rgba(240,196,58,.35),
+          0 12px 40px rgba(240,196,58,.28),
+          0 4px 12px rgba(0,0,0,.35);
+        transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+      }
+      body.sc-on-yard #root button.bg-primary.h-14:hover,
+      body.sc-on-yard #root button.flex.h-14.items-center.justify-center.gap-2.rounded-lg.bg-primary:hover {
+        filter: brightness(1.05);
+        box-shadow:
+          0 0 0 1px rgba(240,196,58,.5),
+          0 16px 48px rgba(240,196,58,.38),
+          0 4px 12px rgba(0,0,0,.35);
+      }
+      body.sc-on-yard #root button.bg-primary.h-14::after,
+      body.sc-on-yard #root button.flex.h-14.items-center.justify-center.gap-2.rounded-lg.bg-primary::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.28) 48%, transparent 62%);
+        transform: translateX(-120%);
+        animation: sc-sheen 3.2s ease-in-out infinite;
+        pointer-events: none;
+      }
+      @keyframes sc-sheen {
+        0%, 55% { transform: translateX(-120%); }
+        75%, 100% { transform: translateX(120%); }
+      }
+
+      body.sc-on-yard #root .rounded-md.bg-elevated,
+      body.sc-on-yard #root button.rounded-md.bg-elevated {
+        border: 1px solid rgba(255,255,255,.06);
+        background: rgba(24,48,65,.85) !important;
+        transition: border-color .15s ease, transform .15s ease, background .15s ease;
+      }
+      body.sc-on-yard #root button.rounded-md.bg-elevated:hover {
+        border-color: rgba(240,196,58,.35);
+        transform: translateY(-1px);
+      }
+
+      body.sc-on-yard #root .bg-primary.text-primary-fg {
+        box-shadow: 0 0 0 1px rgba(240,196,58,.25), 0 8px 20px rgba(240,196,58,.18);
+      }
+
+      /* Restore girl hero photo on the left */
+      body.sc-on-yard #root aside.relative.isolate {
+        background: #0b1620;
+      }
+      body.sc-on-yard #root aside.relative.isolate > img {
+        opacity: 1 !important;
+        pointer-events: none;
+        filter: saturate(1.06) contrast(1.03);
+      }
+      body.sc-on-yard #root aside.relative.isolate::before {
+        display: none !important;
+        content: none !important;
+      }
+      body.sc-on-yard #root aside.relative.isolate::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+        background:
+          radial-gradient(80% 70% at 40% 40%, transparent 40%, rgba(7,13,20,.28) 100%),
+          linear-gradient(90deg, transparent 45%, rgba(7,13,20,.55) 100%);
+      }
+
+      #sc-hack-badge {
+        display: none;
+        position: fixed;
+        left: 50%;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        z-index: 40;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font: 700 11px/1 Nunito, system-ui, sans-serif;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #dce9f2;
+        background: rgba(10,18,28,.72);
+        border: 1px solid rgba(255,255,255,.1);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 24px rgba(0,0,0,.35);
+        pointer-events: none;
+      }
+      body.sc-on-yard #sc-hack-badge { display: inline-flex; align-items: center; gap: 8px; }
+      #sc-hack-badge i {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: #6fbf4a;
+        box-shadow: 0 0 0 3px rgba(111,191,74,.25);
+      }
+
+      #sc-play-demo,
+      #sc-slice-demo {
+        position: fixed;
+        z-index: 45;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font: 700 11px/1.1 Nunito, system-ui, sans-serif;
+        letter-spacing: 0.06em;
+        text-transform: none;
+        padding: 6px 12px;
+        border-radius: 999px;
+        text-decoration: none;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        border: 0;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      body.sc-in-game #sc-play-demo.visible,
+      body.sc-in-game #sc-slice-demo.visible { display: inline-flex; }
+      #sc-play-demo {
+        right: calc(4% + 10px);
+        top: calc(12% + 44px);
+        background: #1565c0;
+      }
+      #sc-play-demo:hover { background: #1976d2; }
+      #sc-slice-demo {
+        left: calc(4% + 10px);
+        top: calc(12% + 10px);
+        background: #6a1b9a;
+      }
+      #sc-slice-demo:hover { background: #8e24aa; }
+      @media (max-width: 720px) {
+        #sc-play-demo { right: 10px; top: calc(10% + 44px); }
+        #sc-slice-demo { left: 10px; top: calc(10% + 10px); }
+      }
+    </style>
+    <link rel="stylesheet" href="/assets/style.css" />
+    <link rel="stylesheet" href="/assets/booth.css?v=11" />
+  </head>
+  <body class="sc-on-yard">
+    <div id="root"><p id="boot">Solarchik…</p></div>
+    <div id="sc-hack-badge"><i></i> MunichTech · Live demo</div>
+    <a
+      id="sc-slice-demo"
+      href="https://slice-solana.netlify.app/"
+      target="_blank"
+      rel="noopener noreferrer"
+      >Slice</a
+    >
+    <a
+      id="sc-play-demo"
+      href="https://solar-screen-demo.netlify.app/"
+      target="_blank"
+      rel="noopener noreferrer"
+      >Play Demo</a
+    >
+    <script>
+      window.onerror = function (message) {
+        var target = document.getElementById("boot") || document.getElementById("root");
+        if (target) target.textContent = String(message || "error");
+      };
+      (function syncBoothShortcuts() {
+        var started = Date.now();
+        var revealed = false;
+        function reveal() {
+          if (revealed) return;
+          revealed = true;
+          document.documentElement.classList.remove("sc-booting");
+        }
+        function inGame() {
+          var hot = document.getElementById("sc-booth-hot");
+          return !!(hot && hot.classList.contains("on"));
+        }
+        function onYardMenu() {
+          if (inGame()) return false;
+          var root = document.getElementById("root");
+          if (!root) return true;
+          if (root.querySelector("aside.relative.isolate")) return true;
+          var text = (root.innerText || "").slice(0, 1200);
+          return /DAILY YARD|Play — CLOCK IN|CLOCK IN/i.test(text);
+        }
+        function tick() {
+          var game = inGame();
+          var yard = onYardMenu();
+          document.body.classList.toggle("sc-in-game", game);
+          if (game) document.body.classList.remove("sc-on-yard");
+          else if (yard) document.body.classList.add("sc-on-yard");
+          else if (Date.now() - started > 900) document.body.classList.remove("sc-on-yard");
+          ["sc-play-demo", "sc-slice-demo"].forEach(function (id) {
+            var btn = document.getElementById(id);
+            if (!btn) return;
+            if (game) btn.classList.add("visible");
+            else btn.classList.remove("visible");
+          });
+          if (document.querySelector("#root aside.relative.isolate") || Date.now() - started > 1200) {
+            reveal();
+          }
+        }
+        tick();
+        setInterval(tick, 120);
+        var root = document.getElementById("root");
+        if (root && window.MutationObserver) {
+          var mo = new MutationObserver(function () {
+            tick();
+            if (revealed) mo.disconnect();
+          });
+          mo.observe(root, { childList: true, subtree: true });
+        }
+      })();
+    </script>
+    <script src="/assets/native.js?v=13"></script>
+    <script src="/web-native.js?v=13"></script>
+    <script src="/assets/booth.js?v=11"></script>
+  </body>
+</html>
