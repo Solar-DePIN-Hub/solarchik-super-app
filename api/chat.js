@@ -3,7 +3,7 @@ const GEMINI_MODEL =
   process.env.GEMINI_MODEL || "gemini-flash-lite-latest";
 const FEATHERLESS_KEY = process.env.FEATHERLESS_API_KEY;
 const FEATHERLESS_MODEL =
-  process.env.FEATHERLESS_MODEL || "Qwen/Qwen2.5-14B-Instruct";
+  process.env.FEATHERLESS_MODEL || "Qwen/Qwen2.5-7B-Instruct";
 
 const friendInstruction = [
   "You are Solarchik (Sol), a warm, witty AI companion in a cozy solar-powered game.",
@@ -15,6 +15,19 @@ const friendInstruction = [
   "Never reply with a fixed catchphrase like \"Hey — Sol here. Talk to me. I'm in your pocket.\"",
   "Do not claim to be human. Be honest when you do not know something.",
 ].join(" ");
+
+function isGarbageReply(text) {
+  const value = String(text || "").trim();
+  if (value.length < 2 || value.length > 800) return true;
+  // Reject model breakdowns with CJK / Arabic / heavy symbol soup.
+  const weird = (value.match(/[\u0400-\u04FF\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/g) || []).join("").length;
+  // Allow short Ukrainian if user asked for it, but for demo English prefer low weird ratio.
+  if (weird > value.length * 0.25 && /[A-Za-z]/.test(value)) return true;
+  if ((value.match(/[\u4E00-\u9FFF]/g) || []).length >= 2) return true;
+  if ((value.match(/�/g) || []).length >= 1) return true;
+  if (/viewModel|Dicom|wp-admin|system automatically|无意义/.test(value)) return true;
+  return false;
+}
 
 function mapHistoryForGemini(history) {
   if (!Array.isArray(history)) return [];
@@ -65,8 +78,8 @@ async function askFeatherless(message, history) {
     },
     body: JSON.stringify({
       model: FEATHERLESS_MODEL,
-      temperature: 0.85,
-      max_tokens: 220,
+      temperature: 0.7,
+      max_tokens: 160,
       messages: [
         { role: "system", content: friendInstruction },
         ...mapHistoryForFeatherless(history),
@@ -86,7 +99,7 @@ async function askFeatherless(message, history) {
   }
 
   const reply = String(body?.choices?.[0]?.message?.content || "").trim();
-  if (!reply || reply.length < 2) {
+  if (!reply || reply.length < 2 || isGarbageReply(reply)) {
     const error = new Error("empty_featherless_reply");
     error.statusCode = 502;
     throw error;
@@ -138,7 +151,7 @@ async function askGemini(message, history) {
           .map((part) => part.text || "")
           .join("")
           .trim();
-        if (reply && reply.length >= 2) return { reply, model };
+        if (reply && reply.length >= 2 && !isGarbageReply(reply)) return { reply, model };
         lastError = Object.assign(new Error("empty_gemini_reply"), { statusCode: 502 });
         continue;
       }
