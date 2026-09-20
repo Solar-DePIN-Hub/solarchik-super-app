@@ -50,8 +50,12 @@
     return [...voices].sort((a, b) => score(b) - score(a))[0] || null;
   };
 
+  let lastSpoken = { text: "", at: 0 };
   const speak = (text, requestedLocale) => {
     if (!text || !window.speechSynthesis) return false;
+    const now = Date.now();
+    if (text === lastSpoken.text && now - lastSpoken.at < 1800) return false;
+    lastSpoken = { text: String(text), at: now };
     try {
       unlockSpeech();
       window.speechSynthesis.cancel();
@@ -121,11 +125,10 @@
       if (!response.ok || !text) {
         text = "I glitched for a second. Say that again — I'm here.";
       }
-      speak(text, "en-US");
+      // Do NOT speak here — the game calls SolarchikNative.speak once after reply.
       reply(requestId, { ok: true, text });
     } catch (error) {
       const text = "I glitched for a second. Say that again — I'm here.";
-      speak(text, "en-US");
       reply(requestId, { ok: true, text });
     }
   }
